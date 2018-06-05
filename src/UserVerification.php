@@ -250,11 +250,12 @@ class UserVerification
      * @param  string  $email
      * @param  string  $token
      * @param  string  $userTable
+     * @param  bool    $softDeletes
      * @return stdClass
      */
-    public function process($email, $token, $userTable)
+    public function process($email, $token, $userTable, $softDeletes)
     {
-        $user = $this->getUserByEmail($email, $userTable);
+        $user = $this->getUserByEmail($email, $userTable, $softDeletes);
 
         unset($user->{"password"});
 
@@ -274,21 +275,27 @@ class UserVerification
      *
      * @param  string  $email
      * @param  string  $table
+     * @param  bool    $softDeletes
      * @return stdClass
      *
      * @throws \Jrean\UserVerification\Exceptions\UserNotFoundException
      */
-    protected function getUserByEmail($email, $table)
+    protected function getUserByEmail($email, $table, $softDeletes)
     {
         $user = DB::table($table)
-            ->where('email', $email)
-            ->first();
+            ->where('email', $email);
+
+        if ($softDeletes)
+            $user = $user->whereNull('deleted_at');
+
+        $user = $user->first();
 
         if ($user === null) {
             throw new UserNotFoundException();
         }
 
         $user->table = $table;
+        $user->softDeletes = $softDeletes;
 
         return $user;
     }
@@ -349,12 +356,16 @@ class UserVerification
      */
     protected function updateUser($user)
     {
-        DB::table($user->table)
-            ->where('email', $user->email)
-            ->update([
-                'verification_token' => $user->verification_token,
-                'verified' => $user->verified
-            ]);
+        $updateUser = DB::table($user->table)
+            ->where('email', $user->email);
+
+        if ($user->softDeletes)
+            $updateUser = $updateUser->whereNull('deleted_at');
+
+        $updateUser->update([
+            'verification_token' => $user->verification_token,
+            'verified' => $user->verified
+        ]);
     }
 
     /**

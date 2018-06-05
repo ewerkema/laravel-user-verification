@@ -30,7 +30,7 @@ trait VerifiesUsers
         }
 
         try {
-            $user = UserVerificationFacade::process($request->input('email'), $token, $this->userTable());
+            $user = UserVerificationFacade::process($request->input('email'), $token, $this->userTable(), $this->softDeletes());
         } catch (UserNotFoundException $e) {
             return redirect($this->redirectIfVerificationFails());
         } catch (UserIsVerifiedException $e) {
@@ -103,5 +103,15 @@ trait VerifiesUsers
     protected function userTable()
     {
         return property_exists($this, 'userTable') ? $this->userTable : 'users';
+    }
+
+    /**
+     * Get the soft deletes boolean.
+     *
+     * @return bool
+     */
+    protected function softDeletes()
+    {
+        return property_exists($this, 'softDeletes') ? filter_var($this->softDeletes, FILTER_VALIDATE_BOOLEAN) : false;
     }
 }
